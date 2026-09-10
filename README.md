@@ -17,6 +17,7 @@ Because `yt-dlp` requires Python, the app employs two distinct native engines de
 1. **Desktop Engine (macOS, Windows, Linux):**
    - Keeps the app bundle extremely small by dynamically downloading standalone, pre-compiled `yt-dlp` and `ffmpeg` binaries to the application support directory on the very first launch.
    - Executes these binaries via native Dart subprocesses (`Process.start`) and parses stdout for progress.
+   - **macOS Security Note:** The macOS App Sandbox is intentionally disabled in this project. Sandboxing strictly prevents the execution of unbundled binaries downloaded at runtime, which is required for our dynamic `yt-dlp` and `ffmpeg` engine.
 
 2. **Android Engine:**
    - Uses the `youtubedl-android` wrapper which embeds a minimal Python runtime natively.
