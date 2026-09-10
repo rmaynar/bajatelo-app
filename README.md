@@ -33,7 +33,9 @@ Because `yt-dlp` requires Python, the app employs two distinct native engines de
 To build and run this project, you need the following installed:
 1. [Flutter SDK](https://docs.flutter.dev/get-started/install) (v3.47.3 or higher)
 2. **For Android:** Android Studio, Android SDK, and an emulator/device.
-3. **For macOS:** Xcode (requires macOS 10.15+ deployment target).
+3. **For macOS:** 
+   - Xcode (requires macOS 10.15+ deployment target).
+   - [CocoaPods](https://cocoapods.org/) (for managing macOS platform dependencies). If not installed, you can install it via Homebrew: `brew install cocoapods`.
 
 ---
 
