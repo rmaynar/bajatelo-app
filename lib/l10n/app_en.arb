@@ -1,0 +1,101 @@
+{
+  "@@locale": "en",
+  "logo": "bajatelo",
+  "@logo": { "description": "App name / logo text" },
+
+  "badge": "Universal Downloader • Fast & Free",
+  "@badge": { "description": "Hero section badge text" },
+
+  "heroTitle1": "Universal Video &",
+  "@heroTitle1": { "description": "First line of hero title" },
+
+  "heroTitle2": "Audio Downloader",
+  "@heroTitle2": { "description": "Second line of hero title (rendered with gradient)" },
+
+  "heroSubtitle": "Download videos and audio from YouTube, TikTok, Instagram, Twitter/X, Facebook, Twitch and 1,000+ platforms in highest quality MP4 or MP3.",
+  "@heroSubtitle": { "description": "Hero subtitle paragraph" },
+
+  "supportedPlatformsLabel": "Supported platforms include:",
+  "@supportedPlatformsLabel": { "description": "Label above platform chips" },
+
+  "inputPlaceholder": "Paste link from YouTube, TikTok, Instagram, X/Twitter, Twitch...",
+  "@inputPlaceholder": { "description": "URL text field placeholder" },
+
+  "searchBtn": "Search",
+  "@searchBtn": { "description": "Search button label (idle state)" },
+
+  "searchingBtn": "Fetching...",
+  "@searchingBtn": { "description": "Search button label (loading state)" },
+
+  "pasteTooltip": "Paste from clipboard",
+  "@pasteTooltip": { "description": "Tooltip for paste icon button" },
+
+  "clearTooltip": "Clear input",
+  "@clearTooltip": { "description": "Tooltip for clear icon button" },
+
+  "downloadVideo": "Download Video (MP4)",
+  "@downloadVideo": { "description": "Download video button label" },
+
+  "downloadAudio": "Download Audio (MP3)",
+  "@downloadAudio": { "description": "Download audio button label" },
+
+  "processingVideo": "Processing Video...",
+  "@processingVideo": { "description": "Video button label while downloading" },
+
+  "processingAudio": "Processing Audio...",
+  "@processingAudio": { "description": "Audio button label while downloading" },
+
+  "processingNotice": "Converting and merging media on the server. Your download will start automatically in a few moments.",
+  "@processingNotice": { "description": "Processing notice shown below download buttons" },
+
+  "duration": "Duration",
+  "@duration": { "description": "Label for video duration field" },
+
+  "videoFormatTag": "MP4 / Best Quality",
+  "@videoFormatTag": { "description": "Meta tag for video format" },
+
+  "audioFormatTag": "MP3 / 320kbps Audio",
+  "@audioFormatTag": { "description": "Meta tag for audio format" },
+
+  "feature1Title": "1,000+ Supported Sites",
+  "@feature1Title": { "description": "Title of feature card 1" },
+
+  "feature1Desc": "Supports YouTube, TikTok, Instagram Reels/Posts, Twitter/X, Twitch, Facebook, SoundCloud, Reddit, and more.",
+  "@feature1Desc": { "description": "Description of feature card 1" },
+
+  "feature2Title": "Ultra Fast Processing",
+  "@feature2Title": { "description": "Title of feature card 2" },
+
+  "feature2Desc": "Powered by yt-dlp & FFmpeg pipeline for lossless format conversions and fast stream merging.",
+  "@feature2Desc": { "description": "Description of feature card 2" },
+
+  "feature3Title": "100% Free & Private",
+  "@feature3Title": { "description": "Title of feature card 3" },
+
+  "feature3Desc": "No registration, no accounts required, no telemetry. Direct downloads straight to your device.",
+  "@feature3Desc": { "description": "Description of feature card 3" },
+
+  "footer": "bajatelo • Fast, Private & Free Universal Media Downloader",
+  "@footer": { "description": "Footer text" },
+
+  "clipboardError": "Unable to read clipboard. Please paste manually.",
+  "@clipboardError": { "description": "Error shown when clipboard read fails" },
+
+  "defaultError": "Error fetching video information. Please verify the URL and try again.",
+  "@defaultError": { "description": "Generic error message for failed metadata fetch" },
+
+  "cancelDownload": "Cancel",
+  "@cancelDownload": { "description": "Cancel button label" },
+
+  "downloadComplete": "Download complete",
+  "@downloadComplete": { "description": "Success message shown after download" },
+
+  "downloadCompleteDesc": "File saved to Downloads folder.",
+  "@downloadCompleteDesc": { "description": "Success description message" },
+
+  "switchToEnglish": "Switch to English",
+  "@switchToEnglish": { "description": "Accessibility label for EN toggle button" },
+
+  "switchToSpanish": "Switch to Spanish",
+  "@switchToSpanish": { "description": "Accessibility label for ES toggle button" }
+}
