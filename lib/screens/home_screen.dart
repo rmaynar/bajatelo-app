@@ -393,17 +393,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ? [
                   const SpinnerWidget(size: 18),
                   const SizedBox(width: 8),
-                  Text(_t['searchingBtn']!,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w700)),
+                  Flexible(
+                    child: Text(_t['searchingBtn']!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
                 ]
               : [
                   const Icon(Icons.search_rounded,
                       color: Colors.white, size: 18),
                   const SizedBox(width: 8),
-                  Text(_t['searchBtn']!,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w700)),
+                  Flexible(
+                    child: Text(_t['searchBtn']!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
                 ],
         ),
       ),
@@ -693,17 +701,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? [
                 const SpinnerWidget(size: 18),
                 const SizedBox(width: 8),
-                Text(_t['processingVideo']!,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: Text(_t['processingVideo']!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
               ]
             : [
                 const Icon(Icons.videocam_outlined,
                     color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Text(_t['downloadVideo']!,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: Text(_t['downloadVideo']!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
               ],
       ),
     );
@@ -722,17 +738,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             ? [
                 const SpinnerWidget(size: 18),
                 const SizedBox(width: 8),
-                Text(_t['processingAudio']!,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: Text(_t['processingAudio']!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
               ]
             : [
                 const Icon(Icons.music_note_outlined,
                     color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Text(_t['downloadAudio']!,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w700)),
+                Flexible(
+                  child: Text(_t['downloadAudio']!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
               ],
       ),
     );
