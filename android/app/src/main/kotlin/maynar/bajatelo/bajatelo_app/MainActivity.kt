@@ -141,7 +141,7 @@ class MainActivity : FlutterActivity() {
                 
                 currentProcessId = "process_${System.currentTimeMillis()}"
                 
-                YoutubeDL.getInstance().execute(request, currentProcessId) { progress ->
+                YoutubeDL.getInstance().execute(request, currentProcessId) { progress: Float, _: Long, _: String ->
                     CoroutineScope(Dispatchers.Main).launch {
                         progressSink?.success(progress.toDouble() / 100.0)
                     }
@@ -243,7 +243,7 @@ class MainActivity : FlutterActivity() {
     private fun updateEngine(result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                YoutubeDL.getInstance().updateYoutubeDL(application, YoutubeDL.UpdateChannel.NIGHTLY)
+                YoutubeDL.getInstance().updateYoutubeDL(application)
                 withContext(Dispatchers.Main) {
                     result.success(null)
                 }
