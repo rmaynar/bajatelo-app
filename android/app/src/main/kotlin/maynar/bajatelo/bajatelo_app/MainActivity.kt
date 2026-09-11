@@ -134,6 +134,7 @@ class MainActivity : FlutterActivity() {
         wrapperScript.writeText("""
 import sys
 import os
+import runpy
 
 # BAJATELO FIX: Prepend the ffmpeg codec lib dir to LD_LIBRARY_PATH.
 # youtubedl-android extracts ffmpeg codec libraries (libavdevice.so.61, libavcodec.so.61, etc.)
@@ -145,10 +146,12 @@ if os.path.isdir(_ffmpeg_lib_dir):
     _existing = os.environ.get('LD_LIBRARY_PATH', '')
     os.environ['LD_LIBRARY_PATH'] = _ffmpeg_lib_dir + (':' + _existing if _existing else '')
 
-# Delegate to the original yt-dlp zip archive
-sys.path.insert(0, ${'"'}${originalYtdlpPath.absolutePath}${'"'})
-import yt_dlp
-yt_dlp.main()
+# Delegate to the original yt-dlp zip archive.
+# yt-dlp is packaged as a zip executable — use runpy.run_path() which handles
+# '__main__' entry points inside zip files, not 'import yt_dlp' which requires
+# the package to be installed as a regular importable module.
+sys.argv[0] = ${'"'}${originalYtdlpPath.absolutePath}${'"'}
+runpy.run_path(${'"'}${originalYtdlpPath.absolutePath}${'"'}, run_name='__main__')
 """.trimIndent())
 
         // Override YoutubeDL's ytdlpPath to use our wrapper
