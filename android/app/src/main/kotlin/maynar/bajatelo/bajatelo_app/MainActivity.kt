@@ -112,25 +112,33 @@ class MainActivity : FlutterActivity() {
         }
     }
 
-    /**
-     * Generates a Python wrapper script at runtime and overrides YoutubeDL's internal
-     * ytdlpPath to point to it. The wrapper prepends the ffmpeg codec shared library dir
-     * to LD_LIBRARY_PATH so that libffprobe.so and libffmpeg.so can find their dependencies
-     * (libavdevice.so.61, libavcodec.so.61, etc.) when spawned as subprocesses by yt-dlp.
-     */
+    // Stores the real yt-dlp zip path so installYtdlpWrapper() can safely be called
+    // multiple times (e.g. after updateYoutubeDL()) without creating a self-reference loop.
+    private var originalYtdlpPath: File? = null
+
     private fun installYtdlpWrapper() {
         val noBackupDir = application.noBackupFilesDir
-
-        // Discover the original ytdlpPath via reflection so the wrapper can delegate to it
         val ytdlpPathField = YoutubeDL::class.java.getDeclaredField("ytdlpPath")
         ytdlpPathField.isAccessible = true
-        val originalYtdlpPath = ytdlpPathField.get(YoutubeDL.getInstance()) as File
+
+        // On first call, capture the real yt-dlp zip path before overriding it.
+        // On subsequent calls (after updateYoutubeDL), ytdlpPath may already point to our
+        // wrapper — guard against that to prevent infinite recursion in the script.
+        val currentPath = ytdlpPathField.get(YoutubeDL.getInstance()) as File
+        val wrapperScript = File(noBackupDir, "yt_dlp_wrapper.py")
+
+        if (currentPath.absolutePath != wrapperScript.absolutePath) {
+            // First call: save the real yt-dlp zip path
+            originalYtdlpPath = currentPath
+        }
+
+        val realYtdlpPath = originalYtdlpPath
+            ?: throw IllegalStateException("originalYtdlpPath not set")
 
         // The ffmpeg codec shared libraries are extracted here by youtubedl-android
         val ffmpegLibDir = File(noBackupDir, "youtubedl-android/packages/ffmpeg/usr/lib")
 
-        // Write the wrapper script
-        val wrapperScript = File(noBackupDir, "yt_dlp_wrapper.py")
+        // Write the wrapper script (regenerate each time in case paths changed)
         wrapperScript.writeText("""
 import sys
 import os
@@ -147,16 +155,16 @@ if os.path.isdir(_ffmpeg_lib_dir):
     os.environ['LD_LIBRARY_PATH'] = _ffmpeg_lib_dir + (':' + _existing if _existing else '')
 
 # Delegate to the original yt-dlp zip archive.
-# yt-dlp is packaged as a zip executable — use runpy.run_path() which handles
-# '__main__' entry points inside zip files, not 'import yt_dlp' which requires
-# the package to be installed as a regular importable module.
-sys.argv[0] = ${'"'}${originalYtdlpPath.absolutePath}${'"'}
-runpy.run_path(${'"'}${originalYtdlpPath.absolutePath}${'"'}, run_name='__main__')
+# yt-dlp is packaged as a zip executable — use runpy.run_path() with run_name='__main__'
+# which executes __main__.py inside the zip, identical to running: python yt-dlp <args>
+_ytdlp_zip = ${'"'}${realYtdlpPath.absolutePath}${'"'}
+sys.argv[0] = _ytdlp_zip
+runpy.run_path(_ytdlp_zip, run_name='__main__')
 """.trimIndent())
 
-        // Override YoutubeDL's ytdlpPath to use our wrapper
+        // Point YoutubeDL at our wrapper
         ytdlpPathField.set(YoutubeDL.getInstance(), wrapperScript)
-        android.util.Log.d("BAJATELO", "yt-dlp wrapper installed: ${wrapperScript.absolutePath}")
+        android.util.Log.d("BAJATELO", "yt-dlp wrapper installed → real yt-dlp: ${realYtdlpPath.absolutePath}")
         android.util.Log.d("BAJATELO", "ffmpeg lib dir: ${ffmpegLibDir.absolutePath} exists=${ffmpegLibDir.exists()}")
     }
 
