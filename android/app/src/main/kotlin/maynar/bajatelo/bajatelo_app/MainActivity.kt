@@ -38,24 +38,24 @@ class MainActivity : FlutterActivity() {
             try {
                 YoutubeDL.getInstance().init(application)
                 FFmpeg.getInstance().init(application)
-                
+
                 // yt-dlp needs BOTH ffmpeg and ffprobe to merge/extract audio, but youtubedl-android
                 // only passes libffmpeg.so. We create symlinks with standard names and reflectively update it.
                 try {
                     val symlinkDir = File(application.noBackupFilesDir, "ffmpeg_symlinks")
                     if (!symlinkDir.exists()) symlinkDir.mkdirs()
-                    
+
                     val ffmpegSymlink = File(symlinkDir, "ffmpeg")
                     val ffprobeSymlink = File(symlinkDir, "ffprobe")
-                    
+
                     val nativeLibDir = application.applicationInfo.nativeLibraryDir
                     val libffmpeg = File(nativeLibDir, "libffmpeg.so")
                     val libffprobe = File(nativeLibDir, "libffprobe.so")
-                    
+
                     // Always try to delete first to handle broken symlinks from previous app installs
                     ffmpegSymlink.delete()
                     ffprobeSymlink.delete()
-                    
+
                     try {
                         android.system.Os.link(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
                         android.system.Os.link(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
@@ -64,25 +64,41 @@ class MainActivity : FlutterActivity() {
                         android.system.Os.symlink(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
                         android.system.Os.symlink(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
                     }
-                    
-                    val field = YoutubeDL::class.java.getDeclaredField("ffmpegPath")
-                    field.isAccessible = true
-                    field.set(YoutubeDL.getInstance(), ffmpegSymlink)
+
+                    val ffmpegField = YoutubeDL::class.java.getDeclaredField("ffmpegPath")
+                    ffmpegField.isAccessible = true
+                    ffmpegField.set(YoutubeDL.getInstance(), ffmpegSymlink)
                 } catch (symlinkError: Exception) {
                     initError = "Symlink failed: " + symlinkError.message
                     symlinkError.printStackTrace()
                     throw symlinkError
                 }
 
+                // FIX: Inject a Python wrapper as the yt-dlp entrypoint.
+                //
+                // Root cause (diagnosed 2026-09-11): youtubedl-android sets LD_LIBRARY_PATH for
+                // the Python subprocess to include nativeLibraryDir, but NOT the ffmpeg codec
+                // packages dir (noBackupFilesDir/youtubedl-android/packages/ffmpeg/usr/lib/).
+                // When yt-dlp then spawns `libffprobe.so -bsfs` to validate the binary, the
+                // dynamic linker cannot find libavdevice.so.61 and crashes with
+                // "CANNOT LINK EXECUTABLE". yt-dlp interprets this OSError as "ffprobe not found".
+                //
+                // Fix: a wrapper script that prepends the codec lib dir to os.environ['LD_LIBRARY_PATH']
+                // before yt-dlp runs. Python's subprocess.Popen inherits os.environ by default,
+                // so all subsequent ffprobe/ffmpeg sub-subprocesses see the correct path.
+                try {
+                    installYtdlpWrapper()
+                } catch (wrapperError: Exception) {
+                    // Non-fatal: fall back to unpatched yt-dlp (audio will still fail, but app won't crash)
+                    android.util.Log.e("BAJATELO", "Failed to install yt-dlp wrapper: ${wrapperError.message}", wrapperError)
+                }
+
                 isInitialized = true
-
-                // === DIAGNOSTIC BLOCK (D2, D3, D4) — remove after investigation ===
-                runDiagnostics()
-                // === END DIAGNOSTIC BLOCK ===
-
                 // Auto-update yt-dlp to latest version (best-effort, non-blocking)
                 try {
                     YoutubeDL.getInstance().updateYoutubeDL(application)
+                    // Re-install wrapper after update since updateYoutubeDL may reset ytdlpPath
+                    installYtdlpWrapper()
                 } catch (updateError: Exception) {
                     // Update failed (offline, etc.) — not fatal, continue with bundled version
                     updateError.printStackTrace()
@@ -97,115 +113,49 @@ class MainActivity : FlutterActivity() {
     }
 
     /**
-     * DIAGNOSTIC: Tasks D2, D3, D4 from yt_dlp_audio_fix_plan.md
-     * Logs to logcat tagged DIAG_D2, DIAG_D3, DIAG_D4.
-     * Filter with: adb logcat -s DIAG_D2 DIAG_D3 DIAG_D4
+     * Generates a Python wrapper script at runtime and overrides YoutubeDL's internal
+     * ytdlpPath to point to it. The wrapper prepends the ffmpeg codec shared library dir
+     * to LD_LIBRARY_PATH so that libffprobe.so and libffmpeg.so can find their dependencies
+     * (libavdevice.so.61, libavcodec.so.61, etc.) when spawned as subprocesses by yt-dlp.
      */
-    private fun runDiagnostics() {
-        val TAG_D2 = "DIAG_D2"
-        val TAG_D3 = "DIAG_D3"
-        val TAG_D4 = "DIAG_D4"
+    private fun installYtdlpWrapper() {
+        val noBackupDir = application.noBackupFilesDir
 
-        // ── D2: Map internal paths and LD_LIBRARY_PATH ──────────────────────────
-        try {
-            android.util.Log.d(TAG_D2, "=== D2: Internal paths and environment ===")
-            android.util.Log.d(TAG_D2, "nativeLibraryDir: ${application.applicationInfo.nativeLibraryDir}")
-            android.util.Log.d(TAG_D2, "noBackupFilesDir: ${application.noBackupFilesDir}")
-            android.util.Log.d(TAG_D2, "LD_LIBRARY_PATH: ${System.getenv("LD_LIBRARY_PATH")}")
-            android.util.Log.d(TAG_D2, "PATH: ${System.getenv("PATH")}")
-            android.util.Log.d(TAG_D2, "PYTHONHOME: ${System.getenv("PYTHONHOME")}")
+        // Discover the original ytdlpPath via reflection so the wrapper can delegate to it
+        val ytdlpPathField = YoutubeDL::class.java.getDeclaredField("ytdlpPath")
+        ytdlpPathField.isAccessible = true
+        val originalYtdlpPath = ytdlpPathField.get(YoutubeDL.getInstance()) as File
 
-            // Reflect all File fields from YoutubeDL instance
-            val ytdl = YoutubeDL.getInstance()
-            for (f in ytdl.javaClass.declaredFields) {
-                f.isAccessible = true
-                val v = f.get(ytdl)
-                if (v is File || v == null) {
-                    android.util.Log.d(TAG_D2, "YoutubeDL.${f.name} = $v")
-                }
-            }
+        // The ffmpeg codec shared libraries are extracted here by youtubedl-android
+        val ffmpegLibDir = File(noBackupDir, "youtubedl-android/packages/ffmpeg/usr/lib")
 
-            // Scan noBackupFilesDir for extracted ffmpeg libraries
-            android.util.Log.d(TAG_D2, "--- noBackupFilesDir tree ---")
-            application.noBackupFilesDir.walkTopDown().forEach { f ->
-                if (f.name.contains("ffmpeg") || f.name.contains("ffprobe") ||
-                    f.name.contains("libav") || f.name.contains("libsw")) {
-                    android.util.Log.d(TAG_D2, "  ${f.absolutePath} (${f.length()} bytes, exec=${f.canExecute()})")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG_D2, "D2 failed: ${e.message}", e)
-        }
+        // Write the wrapper script
+        val wrapperScript = File(noBackupDir, "yt_dlp_wrapper.py")
+        wrapperScript.writeText("""
+import sys
+import os
 
-        // ── D3: Test direct binary execution ────────────────────────────────────
-        try {
-            android.util.Log.d(TAG_D3, "=== D3: Direct binary execution tests ===")
-            val nativeLibDir = application.applicationInfo.nativeLibraryDir
-            val symlinkDir   = File(application.noBackupFilesDir, "ffmpeg_symlinks")
-            val currentLd    = System.getenv("LD_LIBRARY_PATH") ?: ""
+# BAJATELO FIX: Prepend the ffmpeg codec lib dir to LD_LIBRARY_PATH.
+# youtubedl-android extracts ffmpeg codec libraries (libavdevice.so.61, libavcodec.so.61, etc.)
+# to a packages dir that is NOT in the LD_LIBRARY_PATH passed to Python by the Java layer.
+# Without this, 'libffprobe.so -bsfs' crashes with CANNOT LINK EXECUTABLE and yt-dlp reports
+# 'ffprobe and ffmpeg not found', breaking all audio downloads and video merging.
+_ffmpeg_lib_dir = ${'"'}${ffmpegLibDir.absolutePath}${'"'}
+if os.path.isdir(_ffmpeg_lib_dir):
+    _existing = os.environ.get('LD_LIBRARY_PATH', '')
+    os.environ['LD_LIBRARY_PATH'] = _ffmpeg_lib_dir + (':' + _existing if _existing else '')
 
-            data class ExecTest(val label: String, val path: String, val withLd: Boolean)
-            val tests = listOf(
-                ExecTest("libffprobe.so (nativeLibDir, WITH LD_LIB)", "$nativeLibDir/libffprobe.so", true),
-                ExecTest("ffprobe symlink (noBackupFilesDir, WITH LD_LIB)", "${symlinkDir}/ffprobe", true),
-                ExecTest("libffprobe.so (nativeLibDir, WITHOUT LD_LIB)", "$nativeLibDir/libffprobe.so", false),
-                ExecTest("libffmpeg.so (nativeLibDir, WITH LD_LIB)", "$nativeLibDir/libffmpeg.so", true),
-            )
+# Delegate to the original yt-dlp zip archive
+sys.path.insert(0, ${'"'}${originalYtdlpPath.absolutePath}${'"'})
+import yt_dlp
+yt_dlp.main()
+""".trimIndent())
 
-            for (test in tests) {
-                try {
-                    val pb = ProcessBuilder(listOf(test.path, "-version"))
-                    pb.redirectErrorStream(true)
-                    if (test.withLd) pb.environment()["LD_LIBRARY_PATH"] = currentLd
-                    else pb.environment().remove("LD_LIBRARY_PATH")
-                    val proc = pb.start()
-                    val output = proc.inputStream.bufferedReader().readText()
-                    val exitCode = proc.waitFor()
-                    android.util.Log.d(TAG_D3, "[${test.label}] exit=$exitCode output=${output.take(200)}")
-                } catch (e: Exception) {
-                    android.util.Log.e(TAG_D3, "[${test.label}] EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG_D3, "D3 failed: ${e.message}", e)
-        }
-
-        // ── D4: Check yt-dlp Popen / PyInstaller env stripping ──────────────────
-        try {
-            android.util.Log.d(TAG_D4, "=== D4: yt-dlp Popen and PyInstaller check ===")
-            // Find the yt-dlp package on disk
-            val ytdlpSearchDirs = listOf(
-                application.noBackupFilesDir,
-                application.filesDir,
-            )
-            for (dir in ytdlpSearchDirs) {
-                dir.walkTopDown().maxDepth(6).forEach { f ->
-                    if (f.name == "_utils.py" || f.name == "__main__.py" || f.name == "YoutubeDL.py") {
-                        android.util.Log.d(TAG_D4, "Found: ${f.absolutePath}")
-                        // Search for PyInstaller markers and _fix_pyinstaller_issues
-                        val content = f.readText()
-                        if (content.contains("_fix_pyinstaller") || content.contains("_MEIPASS") ||
-                            content.contains("LD_LIBRARY_PATH")) {
-                            android.util.Log.d(TAG_D4, "  >>> MATCH in ${f.name}: contains PyInstaller/LD_LIBRARY_PATH references")
-                            // Log the relevant lines
-                            content.lines().forEachIndexed { i, line ->
-                                if (line.contains("_fix_pyinstaller") || line.contains("_MEIPASS") ||
-                                    line.contains("LD_LIBRARY_PATH")) {
-                                    android.util.Log.d(TAG_D4, "  L${i+1}: $line")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            android.util.Log.d(TAG_D4, "_MEIPASS env: ${System.getenv("_MEIPASS")}")
-            android.util.Log.d(TAG_D4, "D4 done")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG_D4, "D4 failed: ${e.message}", e)
-        }
+        // Override YoutubeDL's ytdlpPath to use our wrapper
+        ytdlpPathField.set(YoutubeDL.getInstance(), wrapperScript)
+        android.util.Log.d("BAJATELO", "yt-dlp wrapper installed: ${wrapperScript.absolutePath}")
+        android.util.Log.d("BAJATELO", "ffmpeg lib dir: ${ffmpegLibDir.absolutePath} exists=${ffmpegLibDir.exists()}")
     }
-
-
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -309,9 +259,6 @@ class MainActivity : FlutterActivity() {
                 }
 
                 val request = YoutubeDLRequest(url)
-                
-                // DIAGNOSTIC D1: add verbose flag to capture whether ffmpeg is actually invoked
-                request.addOption("-v")
 
                 if (format == "video") {
                     request.addOption("-f", "bestvideo+bestaudio/best")
@@ -321,32 +268,19 @@ class MainActivity : FlutterActivity() {
                     request.addOption("-x")
                     request.addOption("--audio-format", "mp3")
                 }
-                
+
                 request.addOption("-o", "${tempDir.absolutePath}/%(title)s.%(ext)s")
-                
+
                 currentProcessId = "process_${System.currentTimeMillis()}"
-                
-                val response = YoutubeDL.getInstance().execute(request, currentProcessId) { progress: Float, _: Long, _: String ->
+
+                YoutubeDL.getInstance().execute(request, currentProcessId) { progress: Float, _: Long, _: String ->
                     CoroutineScope(Dispatchers.Main).launch {
                         progressSink?.success(progress.toDouble() / 100.0)
                     }
                 }
                 currentProcessId = null
 
-                // DIAGNOSTIC D1: log full yt-dlp output to detect ffmpeg usage
-                android.util.Log.d("DIAG_D1", "=== D1: yt-dlp output (format=$format) ===")
-                response.out.lines().forEach { line ->
-                    if (line.contains("[Merger]") || line.contains("[ffmpeg]") ||
-                        line.contains("ffprobe") || line.contains("Downloading 1 format") ||
-                        line.contains("Merging") || line.contains("Postprocessing")) {
-                        android.util.Log.d("DIAG_D1", "KEY: $line")
-                    }
-                }
-                response.err.lines().takeLast(40).forEach { line ->
-                    android.util.Log.d("DIAG_D1", "ERR: $line")
-                }
 
-                
                 // Find the downloaded file
                 val downloadedFile = tempDir.listFiles()?.firstOrNull()
                     ?: throw Exception("Downloaded file not found in temp directory")

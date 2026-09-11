@@ -4,7 +4,18 @@ This document acts as a visible timeline tracking all planning changes, fixes ap
 
 **⚠️ AGENT RULE: Always read this file FIRST to understand historical quirks before debugging.**
 
-## 2026-09-11 21:10:00
+## 2026-09-11 23:05:00
+
+### Fix: Audio download fails — `libavdevice.so.61 not found` / "ffprobe and ffmpeg not found"
+* **Problem**: Audio downloads (and video+audio merging) failed with `ERROR: Postprocessing: ffprobe and ffmpeg not found`.
+* **Root cause (diagnosed via 4 on-device tests)**:
+  * `youtubedl-android` extracts the ffmpeg codec shared libraries (`libavdevice.so.61`, `libavcodec.so.61`, etc.) to `noBackupFilesDir/youtubedl-android/packages/ffmpeg/usr/lib/`.
+  * It sets `LD_LIBRARY_PATH` for the Python subprocess to include `nativeLibraryDir`, but **NOT** the ffmpeg packages lib dir.
+  * When yt-dlp probes ffprobe by running `libffprobe.so -bsfs`, the dynamic linker cannot find `libavdevice.so.61` and crashes with `CANNOT LINK EXECUTABLE`. yt-dlp interprets this `OSError` as "ffprobe not found".
+  * Video downloads appeared to work because `bestvideo+bestaudio/best` silently fell back to a single pre-merged stream — ffmpeg was never actually invoked.
+* **Fix**: A Python wrapper script (`noBackupFilesDir/yt_dlp_wrapper.py`) generated at runtime in `MainActivity.kt` that prepends the codec lib dir to `os.environ['LD_LIBRARY_PATH']` before importing yt-dlp. Python's `subprocess.Popen` inherits `os.environ` by default, so all subsequent ffprobe/ffmpeg sub-subprocesses see the correct path. `YoutubeDL.ytdlpPath` is overridden via reflection to point to the wrapper. The wrapper also re-delegates to the original yt-dlp zip so auto-updates keep working.
+
+
 
 ### Fix: Broken Symlinks on App Update (`EEXIST` crash)
 * **Problem**: When the app is reinstalled or updated via Android Studio, Android assigns a new randomized directory for `nativeLibraryDir` (e.g., `/data/app/~~<random>/...`). The old symlinks in `noBackupFilesDir` are preserved but become broken. Calling `File.exists()` on a broken symlink returns `false`, causing the deletion step to be skipped. `Os.symlink` then crashes with `EEXIST` (File already exists), silently breaking engine initialization.

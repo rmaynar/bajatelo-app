@@ -10,15 +10,20 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| D1: Verify video uses ffmpeg | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
-| D2: Map ffmpeg extraction dir + LD_LIBRARY_PATH | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
-| D3: Test direct binary execution | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
-| D4: Check yt-dlp Popen env handling | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
-| Select solution option | ⬜ TODO | Pending D1–D4 results |
-| Implement fix | ⬜ TODO | Pending option selection |
-| Test audio download | ⬜ TODO | |
-| Test video download | ⬜ TODO | |
-| Update changelog + commit | ⬜ TODO | |
+| D1: Verify video uses ffmpeg | ✅ DONE | `exe versions: none` + `WARNING: ffmpeg is not installed` — video never used ffmpeg, silently fell back to single combined stream |
+| D2: Map ffmpeg extraction dir + LD_LIBRARY_PATH | ✅ DONE | Codec libs at `noBackupFilesDir/youtubedl-android/packages/ffmpeg/usr/lib/`. `LD_LIBRARY_PATH=null` in JVM process. |
+| D3: Test direct binary execution | ✅ DONE | All 4 tests fail with `CANNOT LINK EXECUTABLE: libavdevice.so.61 not found`. **NOT a W^X/SELinux issue** — missing shared libs. |
+| D4: Check yt-dlp Popen env handling | ✅ DONE | No PyInstaller (`_MEIPASS=null`). yt-dlp Popen inherits parent `os.environ`. |
+| Select solution option | ✅ DONE | **Python wrapper (Option C variant)**: set `LD_LIBRARY_PATH` via `os.environ` before yt-dlp probes ffprobe |
+| Implement fix | ✅ DONE | Python wrapper (`yt_dlp_wrapper.py`) + `ytdlpPath` reflection in `MainActivity.kt` |
+| Test audio download | 🟡 IN PROGRESS | APK deployed, awaiting user test |
+| Test video download | 🟡 IN PROGRESS | APK deployed, awaiting user test |
+| Update changelog + commit | 🟡 IN PROGRESS | |
+
+### Diagnostic Findings Summary
+- **Root cause confirmed**: `youtubedl-android` sets `LD_LIBRARY_PATH` for the Python subprocess but does NOT include `packages/ffmpeg/usr/lib/`. When Python spawns `ffprobe -bsfs`, the subprocess cannot find `libavdevice.so.61` and crashes. yt-dlp interprets this `OSError` as "ffprobe not found".
+- **Video downloads never used ffmpeg** — `bestvideo+bestaudio/best` silently fell back to a combined stream (itag 399+251 downloaded separately but not merged).
+- **Fix chosen**: Python wrapper script generated at runtime that prepends the codec lib dir to `os.environ['LD_LIBRARY_PATH']` before importing yt-dlp. Use reflection to set `YoutubeDL.ytdlpPath` to the wrapper. Since Python's `subprocess.Popen` inherits `os.environ` by default, all subsequent ffprobe/ffmpeg sub-subprocesses will see the correct path.
 
 ---
 
