@@ -1,10 +1,28 @@
 # yt-dlp Audio Download Fix Plan (ffprobe not found)
 
-> **Status**: 🔴 BLOCKED — Diagnostic phase required before implementation  
-> **Last Updated**: 2026-09-11 22:40:00  
+> **Status**: 🟡 IN PROGRESS — Diagnostic phase  
+> **Last Updated**: 2026-09-11 22:43:00  
 > **Error**: `ERROR: Postprocessing: ffprobe and ffmpeg not found. Please install or provide the path using --ffmpeg-location`
 
 ---
+
+## 0. Execution Log
+
+| Task | Status | Notes |
+|------|--------|-------|
+| D1: Verify video uses ffmpeg | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
+| D2: Map ffmpeg extraction dir + LD_LIBRARY_PATH | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
+| D3: Test direct binary execution | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
+| D4: Check yt-dlp Popen env handling | 🟡 IN PROGRESS | Diagnostic build deployed, awaiting device logcat |
+| Select solution option | ⬜ TODO | Pending D1–D4 results |
+| Implement fix | ⬜ TODO | Pending option selection |
+| Test audio download | ⬜ TODO | |
+| Test video download | ⬜ TODO | |
+| Update changelog + commit | ⬜ TODO | |
+
+---
+
+
 
 ## 1. Root Cause Analysis (Corrected)
 

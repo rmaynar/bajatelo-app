@@ -75,6 +75,11 @@ class MainActivity : FlutterActivity() {
                 }
 
                 isInitialized = true
+
+                // === DIAGNOSTIC BLOCK (D2, D3, D4) — remove after investigation ===
+                runDiagnostics()
+                // === END DIAGNOSTIC BLOCK ===
+
                 // Auto-update yt-dlp to latest version (best-effort, non-blocking)
                 try {
                     YoutubeDL.getInstance().updateYoutubeDL(application)
@@ -90,6 +95,117 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
+
+    /**
+     * DIAGNOSTIC: Tasks D2, D3, D4 from yt_dlp_audio_fix_plan.md
+     * Logs to logcat tagged DIAG_D2, DIAG_D3, DIAG_D4.
+     * Filter with: adb logcat -s DIAG_D2 DIAG_D3 DIAG_D4
+     */
+    private fun runDiagnostics() {
+        val TAG_D2 = "DIAG_D2"
+        val TAG_D3 = "DIAG_D3"
+        val TAG_D4 = "DIAG_D4"
+
+        // ── D2: Map internal paths and LD_LIBRARY_PATH ──────────────────────────
+        try {
+            android.util.Log.d(TAG_D2, "=== D2: Internal paths and environment ===")
+            android.util.Log.d(TAG_D2, "nativeLibraryDir: ${application.applicationInfo.nativeLibraryDir}")
+            android.util.Log.d(TAG_D2, "noBackupFilesDir: ${application.noBackupFilesDir}")
+            android.util.Log.d(TAG_D2, "LD_LIBRARY_PATH: ${System.getenv("LD_LIBRARY_PATH")}")
+            android.util.Log.d(TAG_D2, "PATH: ${System.getenv("PATH")}")
+            android.util.Log.d(TAG_D2, "PYTHONHOME: ${System.getenv("PYTHONHOME")}")
+
+            // Reflect all File fields from YoutubeDL instance
+            val ytdl = YoutubeDL.getInstance()
+            for (f in ytdl.javaClass.declaredFields) {
+                f.isAccessible = true
+                val v = f.get(ytdl)
+                if (v is File || v == null) {
+                    android.util.Log.d(TAG_D2, "YoutubeDL.${f.name} = $v")
+                }
+            }
+
+            // Scan noBackupFilesDir for extracted ffmpeg libraries
+            android.util.Log.d(TAG_D2, "--- noBackupFilesDir tree ---")
+            application.noBackupFilesDir.walkTopDown().forEach { f ->
+                if (f.name.contains("ffmpeg") || f.name.contains("ffprobe") ||
+                    f.name.contains("libav") || f.name.contains("libsw")) {
+                    android.util.Log.d(TAG_D2, "  ${f.absolutePath} (${f.length()} bytes, exec=${f.canExecute()})")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG_D2, "D2 failed: ${e.message}", e)
+        }
+
+        // ── D3: Test direct binary execution ────────────────────────────────────
+        try {
+            android.util.Log.d(TAG_D3, "=== D3: Direct binary execution tests ===")
+            val nativeLibDir = application.applicationInfo.nativeLibraryDir
+            val symlinkDir   = File(application.noBackupFilesDir, "ffmpeg_symlinks")
+            val currentLd    = System.getenv("LD_LIBRARY_PATH") ?: ""
+
+            data class ExecTest(val label: String, val path: String, val withLd: Boolean)
+            val tests = listOf(
+                ExecTest("libffprobe.so (nativeLibDir, WITH LD_LIB)", "$nativeLibDir/libffprobe.so", true),
+                ExecTest("ffprobe symlink (noBackupFilesDir, WITH LD_LIB)", "${symlinkDir}/ffprobe", true),
+                ExecTest("libffprobe.so (nativeLibDir, WITHOUT LD_LIB)", "$nativeLibDir/libffprobe.so", false),
+                ExecTest("libffmpeg.so (nativeLibDir, WITH LD_LIB)", "$nativeLibDir/libffmpeg.so", true),
+            )
+
+            for (test in tests) {
+                try {
+                    val pb = ProcessBuilder(listOf(test.path, "-version"))
+                    pb.redirectErrorStream(true)
+                    if (test.withLd) pb.environment()["LD_LIBRARY_PATH"] = currentLd
+                    else pb.environment().remove("LD_LIBRARY_PATH")
+                    val proc = pb.start()
+                    val output = proc.inputStream.bufferedReader().readText()
+                    val exitCode = proc.waitFor()
+                    android.util.Log.d(TAG_D3, "[${test.label}] exit=$exitCode output=${output.take(200)}")
+                } catch (e: Exception) {
+                    android.util.Log.e(TAG_D3, "[${test.label}] EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG_D3, "D3 failed: ${e.message}", e)
+        }
+
+        // ── D4: Check yt-dlp Popen / PyInstaller env stripping ──────────────────
+        try {
+            android.util.Log.d(TAG_D4, "=== D4: yt-dlp Popen and PyInstaller check ===")
+            // Find the yt-dlp package on disk
+            val ytdlpSearchDirs = listOf(
+                application.noBackupFilesDir,
+                application.filesDir,
+            )
+            for (dir in ytdlpSearchDirs) {
+                dir.walkTopDown().maxDepth(6).forEach { f ->
+                    if (f.name == "_utils.py" || f.name == "__main__.py" || f.name == "YoutubeDL.py") {
+                        android.util.Log.d(TAG_D4, "Found: ${f.absolutePath}")
+                        // Search for PyInstaller markers and _fix_pyinstaller_issues
+                        val content = f.readText()
+                        if (content.contains("_fix_pyinstaller") || content.contains("_MEIPASS") ||
+                            content.contains("LD_LIBRARY_PATH")) {
+                            android.util.Log.d(TAG_D4, "  >>> MATCH in ${f.name}: contains PyInstaller/LD_LIBRARY_PATH references")
+                            // Log the relevant lines
+                            content.lines().forEachIndexed { i, line ->
+                                if (line.contains("_fix_pyinstaller") || line.contains("_MEIPASS") ||
+                                    line.contains("LD_LIBRARY_PATH")) {
+                                    android.util.Log.d(TAG_D4, "  L${i+1}: $line")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            android.util.Log.d(TAG_D4, "_MEIPASS env: ${System.getenv("_MEIPASS")}")
+            android.util.Log.d(TAG_D4, "D4 done")
+        } catch (e: Exception) {
+            android.util.Log.e(TAG_D4, "D4 failed: ${e.message}", e)
+        }
+    }
+
+
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -194,6 +310,9 @@ class MainActivity : FlutterActivity() {
 
                 val request = YoutubeDLRequest(url)
                 
+                // DIAGNOSTIC D1: add verbose flag to capture whether ffmpeg is actually invoked
+                request.addOption("-v")
+
                 if (format == "video") {
                     request.addOption("-f", "bestvideo+bestaudio/best")
                     request.addOption("--merge-output-format", "mp4")
@@ -207,12 +326,26 @@ class MainActivity : FlutterActivity() {
                 
                 currentProcessId = "process_${System.currentTimeMillis()}"
                 
-                YoutubeDL.getInstance().execute(request, currentProcessId) { progress: Float, _: Long, _: String ->
+                val response = YoutubeDL.getInstance().execute(request, currentProcessId) { progress: Float, _: Long, _: String ->
                     CoroutineScope(Dispatchers.Main).launch {
                         progressSink?.success(progress.toDouble() / 100.0)
                     }
                 }
                 currentProcessId = null
+
+                // DIAGNOSTIC D1: log full yt-dlp output to detect ffmpeg usage
+                android.util.Log.d("DIAG_D1", "=== D1: yt-dlp output (format=$format) ===")
+                response.out.lines().forEach { line ->
+                    if (line.contains("[Merger]") || line.contains("[ffmpeg]") ||
+                        line.contains("ffprobe") || line.contains("Downloading 1 format") ||
+                        line.contains("Merging") || line.contains("Postprocessing")) {
+                        android.util.Log.d("DIAG_D1", "KEY: $line")
+                    }
+                }
+                response.err.lines().takeLast(40).forEach { line ->
+                    android.util.Log.d("DIAG_D1", "ERR: $line")
+                }
+
                 
                 // Find the downloaded file
                 val downloadedFile = tempDir.listFiles()?.firstOrNull()
