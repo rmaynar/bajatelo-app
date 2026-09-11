@@ -52,17 +52,26 @@ class MainActivity : FlutterActivity() {
                     val libffmpeg = File(nativeLibDir, "libffmpeg.so")
                     val libffprobe = File(nativeLibDir, "libffprobe.so")
                     
-                    if (ffmpegSymlink.exists()) ffmpegSymlink.delete()
-                    if (ffprobeSymlink.exists()) ffprobeSymlink.delete()
+                    // Always try to delete first to handle broken symlinks from previous app installs
+                    ffmpegSymlink.delete()
+                    ffprobeSymlink.delete()
                     
-                    android.system.Os.symlink(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
-                    android.system.Os.symlink(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
+                    try {
+                        android.system.Os.link(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
+                        android.system.Os.link(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
+                    } catch (linkError: Exception) {
+                        // Fallback to symlink if hardlink fails (e.g. cross-device)
+                        android.system.Os.symlink(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
+                        android.system.Os.symlink(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
+                    }
                     
                     val field = YoutubeDL::class.java.getDeclaredField("ffmpegPath")
                     field.isAccessible = true
                     field.set(YoutubeDL.getInstance(), ffmpegSymlink)
                 } catch (symlinkError: Exception) {
+                    initError = "Symlink failed: " + symlinkError.message
                     symlinkError.printStackTrace()
+                    throw symlinkError
                 }
 
                 isInitialized = true
@@ -74,7 +83,9 @@ class MainActivity : FlutterActivity() {
                     updateError.printStackTrace()
                 }
             } catch (e: Exception) {
-                initError = e.message ?: "Unknown initialization error"
+                if (initError == null) {
+                    initError = e.message ?: "Unknown initialization error"
+                }
                 e.printStackTrace()
             }
         }
