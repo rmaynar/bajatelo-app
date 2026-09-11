@@ -112,6 +112,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ref.read(downloadNotifierProvider.notifier).clearError();
   }
 
+  void _handleUpdateEngine() {
+    ref.read(downloadNotifierProvider.notifier).updateEngine().then((_) {
+      // After a successful update, auto-retry the search if there's a URL
+      final url = _urlController.text.trim();
+      final state = ref.read(downloadNotifierProvider);
+      if (url.isNotEmpty && !state.hasError) {
+        ref.read(downloadNotifierProvider.notifier).fetchInfo(url);
+      }
+    });
+  }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
@@ -451,6 +462,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   // ── Error Banner ──────────────────────────────────────────────────────────
 
   Widget _buildErrorBanner(DownloadState state) {
+    final showBanner =
+        (state.hasError && state.errorMessage != null) || state.isUpdatingEngine;
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       transitionBuilder: (child, animation) {
@@ -462,39 +476,121 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           child: FadeTransition(opacity: animation, child: child),
         );
       },
-      child: state.hasError && state.errorMessage != null
+      child: showBanner
           ? Padding(
-              key: ValueKey(state.errorMessage),
+              key: ValueKey('${state.errorMessage}_${state.isUpdatingEngine}'),
               padding: const EdgeInsets.only(bottom: 24),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0x1FEF4444),
+                  color: state.isUpdatingEngine
+                      ? const Color(0x1A3B82F6)
+                      : const Color(0x1FEF4444),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0x4DEF4444)),
+                  border: Border.all(
+                    color: state.isUpdatingEngine
+                        ? const Color(0x403B82F6)
+                        : const Color(0x4DEF4444),
+                  ),
                 ),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline_rounded,
-                        color: Color(0xFFFCA5A5), size: 20),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        state.errorMessage!,
-                        style: const TextStyle(
-                          color: Color(0xFFFCA5A5),
-                          fontSize: 14.4,
-                          height: 1.4,
+                    // Top row: icon + message + close
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          state.isUpdatingEngine
+                              ? Icons.system_update_rounded
+                              : Icons.info_outline_rounded,
+                          color: state.isUpdatingEngine
+                              ? const Color(0xFF60A5FA)
+                              : const Color(0xFFFCA5A5),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            state.isUpdatingEngine
+                                ? _t['updatingEngine']!
+                                : state.errorMessage!,
+                            style: TextStyle(
+                              color: state.isUpdatingEngine
+                                  ? const Color(0xFF60A5FA)
+                                  : const Color(0xFFFCA5A5),
+                              fontSize: 14.4,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                        if (!state.isUpdatingEngine)
+                          GestureDetector(
+                            onTap: _dismissError,
+                            child: const Icon(Icons.close,
+                                color: Color(0xFFFCA5A5), size: 18),
+                          ),
+                      ],
+                    ),
+                    // Update Engine button (when engine is outdated)
+                    if (state.needsEngineUpdate && !state.isUpdatingEngine) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: GradientButton(
+                          onPressed: _handleUpdateEngine,
+                          gradientColors: const [
+                            Color(0xFF3B82F6),
+                            Color(0xFF2563EB),
+                          ],
+                          shadowColors: [
+                            BoxShadow(
+                              color: const Color(0xFF3B82F6).withAlpha(89),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.system_update_rounded,
+                                  color: Colors.white, size: 18),
+                              const SizedBox(width: 8),
+                              Text(
+                                _t['updateEngineBtn']!,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: _dismissError,
-                      child: const Icon(Icons.close,
-                          color: Color(0xFFFCA5A5), size: 18),
-                    ),
+                    ],
+                    // Updating spinner
+                    if (state.isUpdatingEngine) ...[
+                      const SizedBox(height: 12),
+                      const Center(
+                        child: SpinnerWidget(
+                          size: 20,
+                          color: Color(0xFF60A5FA),
+                          trackColor: Color(0x6660A5FA),
+                        ),
+                      ),
+                    ],
+                    // Collapsible raw details
+                    if (state.rawErrorDetails != null &&
+                        state.rawErrorDetails!.isNotEmpty &&
+                        !state.isUpdatingEngine) ...[
+                      const SizedBox(height: 10),
+                      _ErrorDetailsToggle(
+                        label: _t['showDetails']!,
+                        details: state.rawErrorDetails!,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -902,6 +998,81 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 // ─── Sub-widgets ──────────────────────────────────────────────────────────────
 
+/// Collapsible toggle that shows raw yt-dlp error details for advanced users.
+class _ErrorDetailsToggle extends StatefulWidget {
+  final String label;
+  final String details;
+
+  const _ErrorDetailsToggle({
+    required this.label,
+    required this.details,
+  });
+
+  @override
+  State<_ErrorDetailsToggle> createState() => _ErrorDetailsToggleState();
+}
+
+class _ErrorDetailsToggleState extends State<_ErrorDetailsToggle> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _expanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: const Color(0xFFFCA5A5),
+                size: 16,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                widget.label,
+                style: const TextStyle(
+                  color: Color(0xFFFCA5A5),
+                  fontSize: 12.0,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Color(0xFFFCA5A5),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0x1A000000),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0x26FFFFFF)),
+            ),
+            child: SelectableText(
+              widget.details,
+              style: const TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 11.2,
+                fontFamily: 'monospace',
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+
 class _IconActionButton extends StatefulWidget {
   final String tooltip;
   final IconData icon;
@@ -1174,6 +1345,9 @@ const Map<String, String> _enTranslations = {
   'footer': 'bajatelo • Fast, Private & Free Universal Media Downloader',
   'cancelDownload': 'Cancel',
   'downloadComplete': 'Download complete',
+  'updateEngineBtn': 'Update Download Engine',
+  'updatingEngine': 'Updating download engine… This may take a moment.',
+  'showDetails': 'Show details',
 };
 
 const Map<String, String> _esTranslations = {
@@ -1212,4 +1386,7 @@ const Map<String, String> _esTranslations = {
       'bajatelo • Descargador Universal de Medios Rápido, Privado y Gratuito',
   'cancelDownload': 'Cancelar',
   'downloadComplete': 'Descarga completada',
+  'updateEngineBtn': 'Actualizar Motor de Descarga',
+  'updatingEngine': 'Actualizando motor de descarga… Esto puede tardar un momento.',
+  'showDetails': 'Ver detalles',
 };

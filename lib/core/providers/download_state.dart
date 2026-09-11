@@ -38,6 +38,15 @@ class DownloadState {
   /// Which format is currently downloading: 'video' | 'audio' | null
   final String? activeFormat;
 
+  /// Whether the error can likely be fixed by updating the yt-dlp engine.
+  final bool needsEngineUpdate;
+
+  /// Whether an engine update is currently in progress.
+  final bool isUpdatingEngine;
+
+  /// Raw error details for advanced users (collapsible in the UI).
+  final String? rawErrorDetails;
+
   const DownloadState({
     this.status = DownloadStatus.idle,
     this.videoInfo,
@@ -45,6 +54,9 @@ class DownloadState {
     this.errorMessage,
     this.result,
     this.activeFormat,
+    this.needsEngineUpdate = false,
+    this.isUpdatingEngine = false,
+    this.rawErrorDetails,
   });
 
   bool get isIdle => status == DownloadStatus.idle;
@@ -60,11 +72,15 @@ class DownloadState {
     String? errorMessage,
     DownloadResult? result,
     String? activeFormat,
+    bool? needsEngineUpdate,
+    bool? isUpdatingEngine,
+    String? rawErrorDetails,
     // Explicit null sentinel so callers can clear nullable fields.
     bool clearVideoInfo = false,
     bool clearError = false,
     bool clearResult = false,
     bool clearActiveFormat = false,
+    bool clearRawErrorDetails = false,
   }) {
     return DownloadState(
       status: status ?? this.status,
@@ -74,6 +90,12 @@ class DownloadState {
       result: clearResult ? null : (result ?? this.result),
       activeFormat:
           clearActiveFormat ? null : (activeFormat ?? this.activeFormat),
+      needsEngineUpdate: needsEngineUpdate ?? this.needsEngineUpdate,
+      isUpdatingEngine: isUpdatingEngine ?? this.isUpdatingEngine,
+      rawErrorDetails: clearRawErrorDetails
+          ? null
+          : (rawErrorDetails ?? this.rawErrorDetails),
     );
   }
 }
+

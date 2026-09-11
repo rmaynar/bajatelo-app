@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
 import 'package:bajatelo_app/core/providers/download_state.dart';
+import 'package:bajatelo_app/core/utils/ytdlp_error_parser.dart';
 
 /// Orchestrates the entire download lifecycle.
 ///
@@ -26,9 +27,12 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
         videoInfo: info,
       );
     } on Exception catch (e) {
+      final parsed = YtdlpErrorParser.parse(_rawMessage(e));
       state = DownloadState(
         status: DownloadStatus.error,
-        errorMessage: _friendlyMessage(e),
+        errorMessage: parsed.friendlyMessage,
+        needsEngineUpdate: parsed.needsEngineUpdate,
+        rawErrorDetails: parsed.rawDetails,
       );
     }
   }
@@ -73,9 +77,12 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
     } on Exception catch (e) {
       // Don't overwrite the idle state set by cancel()
       if (state.isDownloading) {
+        final parsed = YtdlpErrorParser.parse(_rawMessage(e));
         state = state.copyWith(
           status: DownloadStatus.error,
-          errorMessage: _friendlyMessage(e),
+          errorMessage: parsed.friendlyMessage,
+          needsEngineUpdate: parsed.needsEngineUpdate,
+          rawErrorDetails: parsed.rawDetails,
           clearActiveFormat: true,
         );
       }
@@ -94,6 +101,28 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
     );
   }
 
+  // ── updateEngine ───────────────────────────────────────────────────────────
+
+  /// Updates the yt-dlp engine to the latest version.
+  Future<void> updateEngine() async {
+    state = state.copyWith(isUpdatingEngine: true);
+    try {
+      await _service.updateEngine();
+      state = state.copyWith(
+        isUpdatingEngine: false,
+        needsEngineUpdate: false,
+        clearError: true,
+        clearRawErrorDetails: true,
+        status: DownloadStatus.idle,
+      );
+    } on Exception catch (e) {
+      state = state.copyWith(
+        isUpdatingEngine: false,
+        errorMessage: 'Failed to update engine: ${_rawMessage(e)}',
+      );
+    }
+  }
+
   // ── reset ──────────────────────────────────────────────────────────────────
 
   /// Resets the entire state back to [DownloadStatus.idle].
@@ -106,14 +135,17 @@ class DownloadNotifier extends StateNotifier<DownloadState> {
     state = state.copyWith(
       status: DownloadStatus.idle,
       clearError: true,
+      clearRawErrorDetails: true,
+      needsEngineUpdate: false,
     );
   }
 
   // ── helpers ────────────────────────────────────────────────────────────────
 
-  String _friendlyMessage(Exception e) {
+  /// Extracts the raw message from an exception, stripping Dart's
+  /// "Exception: " prefix.
+  String _rawMessage(Exception e) {
     final msg = e.toString();
-    // Strip the "Exception: " prefix added by Dart
     if (msg.startsWith('Exception: ')) {
       return msg.substring('Exception: '.length);
     }
