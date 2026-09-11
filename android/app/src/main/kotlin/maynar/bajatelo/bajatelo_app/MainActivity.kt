@@ -29,14 +29,54 @@ class MainActivity : FlutterActivity() {
 
     private var progressSink: EventChannel.EventSink? = null
     private var currentProcessId: String? = null
+    private var isInitialized = false
+    private var initError: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            YoutubeDL.getInstance().init(application)
-            FFmpeg.getInstance().init(application)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                YoutubeDL.getInstance().init(application)
+                FFmpeg.getInstance().init(application)
+                
+                // yt-dlp needs BOTH ffmpeg and ffprobe to merge/extract audio, but youtubedl-android
+                // only passes libffmpeg.so. We create symlinks with standard names and reflectively update it.
+                try {
+                    val symlinkDir = File(application.noBackupFilesDir, "ffmpeg_symlinks")
+                    if (!symlinkDir.exists()) symlinkDir.mkdirs()
+                    
+                    val ffmpegSymlink = File(symlinkDir, "ffmpeg")
+                    val ffprobeSymlink = File(symlinkDir, "ffprobe")
+                    
+                    val nativeLibDir = application.applicationInfo.nativeLibraryDir
+                    val libffmpeg = File(nativeLibDir, "libffmpeg.so")
+                    val libffprobe = File(nativeLibDir, "libffprobe.so")
+                    
+                    if (ffmpegSymlink.exists()) ffmpegSymlink.delete()
+                    if (ffprobeSymlink.exists()) ffprobeSymlink.delete()
+                    
+                    android.system.Os.symlink(libffmpeg.absolutePath, ffmpegSymlink.absolutePath)
+                    android.system.Os.symlink(libffprobe.absolutePath, ffprobeSymlink.absolutePath)
+                    
+                    val field = YoutubeDL::class.java.getDeclaredField("ffmpegPath")
+                    field.isAccessible = true
+                    field.set(YoutubeDL.getInstance(), ffmpegSymlink)
+                } catch (symlinkError: Exception) {
+                    symlinkError.printStackTrace()
+                }
+
+                isInitialized = true
+                // Auto-update yt-dlp to latest version (best-effort, non-blocking)
+                try {
+                    YoutubeDL.getInstance().updateYoutubeDL(application)
+                } catch (updateError: Exception) {
+                    // Update failed (offline, etc.) — not fatal, continue with bundled version
+                    updateError.printStackTrace()
+                }
+            } catch (e: Exception) {
+                initError = e.message ?: "Unknown initialization error"
+                e.printStackTrace()
+            }
         }
     }
 
@@ -88,12 +128,26 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private suspend fun ensureInitialized() {
+        // Wait for async init to complete (max ~10 seconds)
+        var retries = 0
+        while (!isInitialized && initError == null && retries < 100) {
+            kotlinx.coroutines.delay(100)
+            retries++
+        }
+        if (!isInitialized) {
+            throw Exception(initError ?: "YoutubeDL engine failed to initialize. Please restart the app.")
+        }
+    }
+
     private fun getVideoInfo(url: String, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                ensureInitialized()
                 val request = YoutubeDLRequest(url)
                 request.addOption("--dump-json")
                 request.addOption("--no-download")
+                request.addOption("--no-warnings")
                 
                 val response = YoutubeDL.getInstance().execute(request, null, null)
                 val json = JSONObject(response.out)
@@ -118,6 +172,7 @@ class MainActivity : FlutterActivity() {
     private fun downloadMedia(url: String, format: String, outputPath: String, result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                ensureInitialized()
                 // Clear the temp output directory so we can easily find the downloaded file
                 val tempDir = File(outputPath)
                 if (!tempDir.exists()) {
@@ -243,6 +298,7 @@ class MainActivity : FlutterActivity() {
     private fun updateEngine(result: MethodChannel.Result) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
+                ensureInitialized()
                 YoutubeDL.getInstance().updateYoutubeDL(application)
                 withContext(Dispatchers.Main) {
                     result.success(null)

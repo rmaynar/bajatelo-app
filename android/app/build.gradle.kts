@@ -36,6 +36,13 @@ android {
             signingConfig = signingConfigs.getByName("debug")
         }
     }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols.add("**/*.zip.so")
+        }
+    }
 }
 
 kotlin {
@@ -49,8 +56,8 @@ flutter {
 }
 
 dependencies {
-    implementation("com.github.yausername.youtubedl-android:library:0.14.+")
-    implementation("com.github.yausername.youtubedl-android:ffmpeg:0.14.+")
-    implementation("com.github.yausername.youtubedl-android:aria2c:0.14.+")
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+    implementation("io.github.junkfood02.youtubedl-android:aria2c:0.18.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
