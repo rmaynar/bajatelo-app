@@ -22,3 +22,4 @@ Command output here is condensed to save tokens, keeping every signal and droppi
 # yt-dlp / Downloading Investigations
 For any tasks, issues, or investigations involving video downloading, audio downloading, ffmpeg, or the yt-dlp engine:
 - **MANDATORY**: You MUST read `docs/yt_dlp_architecture_and_fixes.md` FIRST before making any plans, proposing fixes, or executing codebase changes. It contains crucial historical context, architectural decisions, and native Android quirks (like `libffprobe.so` symlink bypasses) that will save you time and prevent regressions.
+- **DOCUMENTATION UPDATE REQUIRED**: If you implement a new fix, workaround, or make a significant architectural change to the downloading/yt-dlp logic, you MUST append the details of your changes to `docs/yt_dlp_architecture_and_fixes.md` before finishing your task and committing.
