@@ -11,6 +11,7 @@ A 100% standalone, cross-platform Flutter application for downloading videos and
 - **Responsive UI:** A beautiful, dark glassmorphic design that adapts from mobile screens to wide desktop windows.
 - **Multilingual:** Auto-detects your system language (English & Spanish supported).
 - **History Tracking:** Local persistent history of all your downloaded media.
+- **Storage Location:** Media is saved directly to your system's `Downloads` folder by default (the ability to choose custom save locations is planned for a future update).
 
 ## 🏗️ Architecture
 
