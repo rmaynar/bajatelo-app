@@ -2,7 +2,8 @@
 
 A 100% standalone, cross-platform Flutter application for downloading videos and audio. This app is the native evolution of the Bajatelo web app, designed to run completely offline on your device without needing a remote backend!
 
-<img src="screenshots/macos-app.png" alt="Bajatelo macOS App" width="600"/>
+![Bajatelo App](screenshots/Screenshot_1.png)
+![Bajatelo App](screenshots/Screenshot_2.png)
 
 ## 🌟 Features
 - **Cross-Platform:** Runs natively on Android, macOS, Windows, and Linux.
