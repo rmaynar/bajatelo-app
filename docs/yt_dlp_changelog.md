@@ -63,3 +63,9 @@ This document acts as a visible timeline tracking all planning changes, fixes ap
   - Updated `MainActivity.kt`'s Python wrapper to explicitly combine ALL package directories (`ffmpeg`, `python`, `aria2c`) WITH `nativeLibraryDir` into the final `LD_LIBRARY_PATH`. This fully resolves all "library not found" errors on standard 4KB devices.
   - Furthermore, explicitly bundled `libc++_shared.so` into the app's `jniLibs` directory by copying it from the NDK, since Flutter drops it and the AAR doesn't package it.
 * **Conclusion (Unfixable on Emulator)**: The 16KB page alignment issue is a binary incompatibility at the ELF level of `libwebp.so` inside the third-party AAR. We cannot fix this via Kotlin/Python workarounds. The emulator being used is a 16KB device (`emu64a16k`). Audio downloading will remain broken on this specific emulator (and future Android 15 16k devices) until the upstream `youtubedl-android` maintainer recompiles the FFmpeg binaries with 16k page alignment.
+
+## 2026-09-12 22:19:19
+
+### Fix: Desktop JSON Mapping Mismatch
+* **Problem**: On macOS/Desktop, `yt-dlp` returns a valid JSON, but `DesktopDownloaderService` was mapping the `thumbnail` and `duration` fields to `thumbnailUrl` and `durationSeconds`. However, `VideoInfo.fromJson` expects the keys `'thumbnail'` and `'duration'`. This mismatch caused thumbnails and durations to always be `null` on Desktop, leading to a placeholder UI.
+* **Fix**: Updated `DesktopDownloaderService` to properly map `data['thumbnail']` to `'thumbnail'` and `data['duration']` to `'duration'` in the dictionary passed to `VideoInfo.fromJson()`.

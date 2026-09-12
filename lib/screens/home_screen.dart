@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -670,13 +672,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
             child: videoInfo.thumbnailUrl != null
-                ? Image.network(
-                    videoInfo.thumbnailUrl!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                    height: double.infinity,
-                    errorBuilder: (_, __, ___) => _buildThumbnailPlaceholder(),
-                  )
+                ? (Platform.isMacOS && (videoInfo.thumbnailUrl!.startsWith('/') || videoInfo.thumbnailUrl!.startsWith('file://'))
+                    ? Image.file(
+                        File(videoInfo.thumbnailUrl!.replaceFirst('file://', '')),
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) => _buildThumbnailPlaceholder(),
+                      )
+                    : Image.network(
+                        videoInfo.thumbnailUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (_, __, ___) => _buildThumbnailPlaceholder(),
+                      ))
                 : _buildThumbnailPlaceholder(),
           ),
           if (videoInfo.durationSeconds != null)

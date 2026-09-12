@@ -26,8 +26,8 @@ class DesktopDownloaderService implements IDownloaderService {
     return VideoInfo.fromJson({
       'id': data['id'],
       'title': data['title'],
-      'thumbnailUrl': data['thumbnail'] ?? '',
-      'durationSeconds': data['duration'] ?? 0,
+      'thumbnail': data['thumbnail'] ?? '',
+      'duration': data['duration'] ?? 0,
     });
   }
 
