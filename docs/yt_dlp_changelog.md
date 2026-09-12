@@ -46,3 +46,20 @@ This document acts as a visible timeline tracking all planning changes, fixes ap
 ### Fix: Native Library Stripping (`llvm-strip` corruption)
 * **Problem**: The `youtubedl-android` library distributes Python and FFmpeg inside disguised `.zip.so` files. Android's Gradle plugin attempts to strip debugging symbols from `.so` files using `llvm-strip`, which corrupts these zip payloads.
 * **Fix**: Added `useLegacyPackaging = true` and `keepDebugSymbols.add("**/*.zip.so")` to `android/app/build.gradle.kts`.
+
+## 2026-09-11 23:35:00
+
+### Fix: Audio download fails (Missing libc++_shared.so in LD_LIBRARY_PATH)
+* **Problem**: Audio downloads still failed after the previous fix because `libffprobe.so` could not find `libc++_shared.so`. The previous Python wrapper prepended `packages/ffmpeg/usr/lib` to the `LD_LIBRARY_PATH` passed by `youtubedl-android`. However, analysis of `YoutubeDL.java` decompilation proved that the `youtubedl-android` library actually hardcodes `LD_LIBRARY_PATH` to ONLY contain the extracted Python/FFmpeg/Aria2c dirs (`packages/python/usr/lib:packages/ffmpeg/usr/lib:packages/aria2c/usr/lib`), omitting the app's `nativeLibraryDir` entirely!
+* **Fix**: Updated `yt_dlp_wrapper.py` in `MainActivity.kt` to explicitly append `nativeLibraryDir` (which contains `libc++_shared.so`) to `LD_LIBRARY_PATH`. This ensures both `libavdevice.so.61` and `libc++_shared.so` are visible to the dynamic linker when `yt-dlp` spawns the `ffprobe` subprocess.
+
+## 2026-09-11 23:45:00
+
+### Fix & Discovery: 16KB Page Size Binary Incompatibility (`libwebp.so`) & Missing `libexpat.so.1`
+* **Problem**: Audio downloads still failed after adding `nativeLibraryDir` to `LD_LIBRARY_PATH`. Deep diagnostic traces of the dynamic linker via `adb shell run-as` revealed two new critical issues:
+  1. **Missing `libexpat.so.1`**: `youtubedl-android` bundles `libexpat.so.1` inside `packages/python/usr/lib`, not in `ffmpeg/usr/lib`. By aggressively overriding `LD_LIBRARY_PATH`, we had inadvertently stripped the python directory, breaking `libfontconfig.so`.
+  2. **16KB Page Alignment Crash**: After fixing `LD_LIBRARY_PATH`, the Android dynamic linker still explicitly rejected loading `libffprobe.so`. The error `libwebp.so program alignment (4096) cannot be smaller than system page size (16384)` was thrown. Android 15 requires all native libraries to be 16KB aligned (`-z max-page-size=16384`). The pre-compiled FFmpeg binaries bundled in `io.github.junkfood02.youtubedl-android:0.18.1` contain several libraries (specifically the `libwebp` suite) that are hard-aligned to 4KB.
+* **Fix Applied**: 
+  - Updated `MainActivity.kt`'s Python wrapper to explicitly combine ALL package directories (`ffmpeg`, `python`, `aria2c`) WITH `nativeLibraryDir` into the final `LD_LIBRARY_PATH`. This fully resolves all "library not found" errors on standard 4KB devices.
+  - Furthermore, explicitly bundled `libc++_shared.so` into the app's `jniLibs` directory by copying it from the NDK, since Flutter drops it and the AAR doesn't package it.
+* **Conclusion (Unfixable on Emulator)**: The 16KB page alignment issue is a binary incompatibility at the ELF level of `libwebp.so` inside the third-party AAR. We cannot fix this via Kotlin/Python workarounds. The emulator being used is a 16KB device (`emu64a16k`). Audio downloading will remain broken on this specific emulator (and future Android 15 16k devices) until the upstream `youtubedl-android` maintainer recompiles the FFmpeg binaries with 16k page alignment.

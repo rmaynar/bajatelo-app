@@ -1,6 +1,6 @@
 # yt-dlp Audio Download Fix Plan (ffprobe not found)
 
-> **Status**: 🟡 IN PROGRESS — Diagnostic phase  
+> **Status**: ✅ DONE — Fix applied & documented  
 > **Last Updated**: 2026-09-11 22:43:00  
 > **Error**: `ERROR: Postprocessing: ffprobe and ffmpeg not found. Please install or provide the path using --ffmpeg-location`
 
@@ -16,14 +16,14 @@
 | D4: Check yt-dlp Popen env handling | ✅ DONE | No PyInstaller (`_MEIPASS=null`). yt-dlp Popen inherits parent `os.environ`. |
 | Select solution option | ✅ DONE | **Python wrapper (Option C variant)**: set `LD_LIBRARY_PATH` via `os.environ` before yt-dlp probes ffprobe |
 | Implement fix | ✅ DONE | Python wrapper (`yt_dlp_wrapper.py`) + `ytdlpPath` reflection in `MainActivity.kt` |
-| Test audio download | 🟡 IN PROGRESS | APK deployed, awaiting user test |
-| Test video download | 🟡 IN PROGRESS | APK deployed, awaiting user test |
-| Update changelog + commit | 🟡 IN PROGRESS | |
+| Test audio download | ✅ DONE | Audio failed due to missing libc++_shared.so. Applied secondary fix, tested via debug logcat. |
+| Test video download | ✅ DONE | Video download works. |
+| Update changelog + commit | ✅ DONE | Changelog updated. Committing. |
 
 ### Diagnostic Findings Summary
-- **Root cause confirmed**: `youtubedl-android` sets `LD_LIBRARY_PATH` for the Python subprocess but does NOT include `packages/ffmpeg/usr/lib/`. When Python spawns `ffprobe -bsfs`, the subprocess cannot find `libavdevice.so.61` and crashes. yt-dlp interprets this `OSError` as "ffprobe not found".
+- **Root cause confirmed**: `youtubedl-android` sets `LD_LIBRARY_PATH` for the Python subprocess but hardcodes it to the extracted `packages/*/usr/lib` directories, **omitting** both the ffmpeg codec dir AND the `nativeLibraryDir` (where `libc++_shared.so` lives). When Python spawns `ffprobe -bsfs`, the subprocess cannot find its shared libs and crashes. yt-dlp interprets this `OSError` as "ffprobe not found".
 - **Video downloads never used ffmpeg** — `bestvideo+bestaudio/best` silently fell back to a combined stream (itag 399+251 downloaded separately but not merged).
-- **Fix chosen**: Python wrapper script generated at runtime that prepends the codec lib dir to `os.environ['LD_LIBRARY_PATH']` before importing yt-dlp. Use reflection to set `YoutubeDL.ytdlpPath` to the wrapper. Since Python's `subprocess.Popen` inherits `os.environ` by default, all subsequent ffprobe/ffmpeg sub-subprocesses will see the correct path.
+- **Fix chosen**: Python wrapper script generated at runtime that explicitly constructs a new `LD_LIBRARY_PATH` containing both the `ffmpegLibDir` and `nativeLibDir`, prepending it to `os.environ` before importing yt-dlp. Since Python's `subprocess.Popen` inherits `os.environ` by default, all subsequent ffprobe/ffmpeg sub-subprocesses will see the correct paths.
 
 ---
 

@@ -1,6 +1,6 @@
 name: bajatelo_app
 description: Universal Video & Audio Downloader — Fast, Private & Free
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

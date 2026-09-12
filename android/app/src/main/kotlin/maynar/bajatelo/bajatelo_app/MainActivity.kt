@@ -139,25 +139,28 @@ class MainActivity : FlutterActivity() {
         val ffmpegLibDir = File(noBackupDir, "youtubedl-android/packages/ffmpeg/usr/lib")
 
         // Write the wrapper script (regenerate each time in case paths changed)
+        val nativeLibDir = application.applicationInfo.nativeLibraryDir
+
         wrapperScript.writeText("""
 import sys
 import os
 import runpy
 
-# BAJATELO FIX: Prepend the ffmpeg codec lib dir to LD_LIBRARY_PATH.
-# youtubedl-android extracts ffmpeg codec libraries (libavdevice.so.61, libavcodec.so.61, etc.)
-# to a packages dir that is NOT in the LD_LIBRARY_PATH passed to Python by the Java layer.
-# Without this, 'libffprobe.so -bsfs' crashes with CANNOT LINK EXECUTABLE and yt-dlp reports
-# 'ffprobe and ffmpeg not found', breaking all audio downloads and video merging.
-_ffmpeg_lib_dir = ${'"'}${ffmpegLibDir.absolutePath}${'"'}
+_ffmpeg_lib_dir = "${ffmpegLibDir.absolutePath}"
+_native_lib_dir = "${nativeLibDir}"
+
 if os.path.isdir(_ffmpeg_lib_dir):
     _existing = os.environ.get('LD_LIBRARY_PATH', '')
-    os.environ['LD_LIBRARY_PATH'] = _ffmpeg_lib_dir + (':' + _existing if _existing else '')
+    # youtubedl-android sets LD_LIBRARY_PATH to only the extracted packages, but omits
+    # the app's nativeLibraryDir (causing missing libc++_shared.so).
+    # We must explicitly construct a path that contains BOTH the native lib dir AND all the packages.
+    _python_lib_dir = "${File(noBackupDir, "youtubedl-android/packages/python/usr/lib").absolutePath}"
+    _aria2c_lib_dir = "${File(noBackupDir, "youtubedl-android/packages/aria2c/usr/lib").absolutePath}"
+    
+    _new_ld = _ffmpeg_lib_dir + ":" + _python_lib_dir + ":" + _aria2c_lib_dir + ":" + _native_lib_dir
+    os.environ['LD_LIBRARY_PATH'] = _new_ld + (':' + _existing if _existing else '')
 
-# Delegate to the original yt-dlp zip archive.
-# yt-dlp is packaged as a zip executable — use runpy.run_path() with run_name='__main__'
-# which executes __main__.py inside the zip, identical to running: python yt-dlp <args>
-_ytdlp_zip = ${'"'}${realYtdlpPath.absolutePath}${'"'}
+_ytdlp_zip = "${realYtdlpPath.absolutePath}"
 sys.argv[0] = _ytdlp_zip
 runpy.run_path(_ytdlp_zip, run_name='__main__')
 """.trimIndent())
