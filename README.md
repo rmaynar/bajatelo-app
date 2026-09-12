@@ -94,6 +94,34 @@ flutter build macos --release
 
 ---
 
+## 🧪 Testing
+
+This project includes automated UI testing for the core download flows.
+
+### 1. Flutter Integration Tests
+The canonical way to test the UI and native download integration is via Flutter's `integration_test` framework.
+
+**Important Note for Android Emulators**: The underlying native `ffmpeg` library (`libwebp.so` inside `youtubedl-android`) is built for standard **4KB page sizes**. If you attempt to run the integration tests on an Android 15+ 16KB-page emulator (e.g., `emu64a16k`), the download engine will crash natively with an ELF alignment error. Always run tests on a standard 4KB emulator (e.g., `emu64a`) or a physical device.
+
+To run the integration tests locally on an attached device:
+```bash
+flutter test integration_test/download_flow_test.dart
+```
+
+### 2. Autonomous Testing via Antigravity Agent
+We have defined an Antigravity **Skill** (`testapp`) that allows AI Agents to autonomously test the app.
+If you are using Google Antigravity, simply ask the agent:
+> "Run the testapp skill"
+
+The agent will autonomously:
+1. Ensure the emulator is running.
+2. Launch a background watcher to auto-accept any native Android permission dialogs (`test_scripts/auto_allow_permissions.sh`).
+3. Execute the Flutter Integration tests or a pure ADB black-box script.
+4. Capture the ADB `logcat` output.
+5. Generate a markdown report in `test_reports/download_test_results.md`.
+
+---
+
 ## 🧑‍💻 Contributing
 - **UI/UX Changes:** Modify code within `lib/screens` and `lib/widgets`.
 - **State Management:** Riverpod providers are located in `lib/core/providers`.
