@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "maynar.bajatelo" "\0"
-            VALUE "FileDescription", "bajatelo_app" "\0"
+            VALUE "FileDescription", "bajatelo" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "bajatelo_app" "\0"
+            VALUE "InternalName", "bajatelo" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 maynar.bajatelo. All rights reserved." "\0"
-            VALUE "OriginalFilename", "bajatelo_app.exe" "\0"
-            VALUE "ProductName", "bajatelo_app" "\0"
+            VALUE "OriginalFilename", "bajatelo.exe" "\0"
+            VALUE "ProductName", "bajatelo" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

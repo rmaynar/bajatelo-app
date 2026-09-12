@@ -1,5 +1,5 @@
-import 'package:bajatelo_app/core/models/video_info.dart';
-import 'package:bajatelo_app/core/models/download_result.dart';
+import 'package:bajatelo/core/models/video_info.dart';
+import 'package:bajatelo/core/models/download_result.dart';
 
 /// Specifies whether to download the video stream or audio-only.
 enum DownloadFormat {

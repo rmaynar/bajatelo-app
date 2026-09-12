@@ -1,5 +1,5 @@
-import 'package:bajatelo_app/core/models/download_result.dart';
-import 'package:bajatelo_app/core/models/video_info.dart';
+import 'package:bajatelo/core/models/download_result.dart';
+import 'package:bajatelo/core/models/video_info.dart';
 
 /// Represents every stage of the download lifecycle.
 enum DownloadStatus {

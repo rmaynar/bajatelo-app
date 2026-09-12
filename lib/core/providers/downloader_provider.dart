@@ -1,15 +1,15 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
-import 'package:bajatelo_app/core/models/download_result.dart';
-import 'package:bajatelo_app/core/providers/download_state.dart';
-import 'package:bajatelo_app/core/providers/download_notifier.dart';
-import 'package:bajatelo_app/core/services/mock_downloader_service.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/models/download_result.dart';
+import 'package:bajatelo/core/providers/download_state.dart';
+import 'package:bajatelo/core/providers/download_notifier.dart';
+import 'package:bajatelo/core/services/mock_downloader_service.dart';
 
 import 'dart:io' show Platform;
-import 'package:bajatelo_app/services/android_downloader_service.dart';
-import 'package:bajatelo_app/services/desktop_downloader_service.dart';
+import 'package:bajatelo/services/android_downloader_service.dart';
+import 'package:bajatelo/services/desktop_downloader_service.dart';
 
 /// Provides the [IDownloaderService] for the current platform.
 final downloaderServiceProvider = Provider<IDownloaderService>((ref) {

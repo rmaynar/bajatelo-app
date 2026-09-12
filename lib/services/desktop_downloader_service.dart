@@ -1,10 +1,10 @@
 import 'dart:io';
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
-import 'package:bajatelo_app/core/models/video_info.dart';
-import 'package:bajatelo_app/core/models/download_result.dart';
-import 'package:bajatelo_app/services/desktop/binary_manager.dart';
-import 'package:bajatelo_app/services/desktop/ytdlp_process_runner.dart';
-import 'package:bajatelo_app/services/desktop/file_naming.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/models/video_info.dart';
+import 'package:bajatelo/core/models/download_result.dart';
+import 'package:bajatelo/services/desktop/binary_manager.dart';
+import 'package:bajatelo/services/desktop/ytdlp_process_runner.dart';
+import 'package:bajatelo/services/desktop/file_naming.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 

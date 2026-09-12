@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:bajatelo_app/core/providers/downloader_provider.dart';
-import 'package:bajatelo_app/core/theme/app_theme.dart';
-import 'package:bajatelo_app/screens/home_screen.dart';
+import 'package:bajatelo/core/providers/downloader_provider.dart';
+import 'package:bajatelo/core/theme/app_theme.dart';
+import 'package:bajatelo/screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

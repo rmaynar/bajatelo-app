@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
-import 'package:bajatelo_app/core/models/video_info.dart';
-import 'package:bajatelo_app/core/models/download_result.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/models/video_info.dart';
+import 'package:bajatelo/core/models/download_result.dart';
 
 class AndroidDownloaderService implements IDownloaderService {
   static const _channel = MethodChannel('maynar.bajatelo/downloader');

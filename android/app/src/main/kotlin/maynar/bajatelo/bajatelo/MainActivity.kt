@@ -1,4 +1,4 @@
-package maynar.bajatelo.bajatelo_app
+package maynar.bajatelo.bajatelo
 
 import android.content.ContentValues
 import android.media.MediaScannerConnection

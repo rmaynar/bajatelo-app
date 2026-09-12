@@ -90,7 +90,7 @@ Build a release macOS app:
 ```bash
 flutter build macos --release
 ```
-*The built application will be located at `build/macos/Build/Products/Release/bajatelo_app.app`.*
+*The built application will be located at `build/macos/Build/Products/Release/bajatelo.app`.*
 
 ---
 
@@ -98,5 +98,5 @@ flutter build macos --release
 - **UI/UX Changes:** Modify code within `lib/screens` and `lib/widgets`.
 - **State Management:** Riverpod providers are located in `lib/core/providers`.
 - **Native Bridges:** 
-  - Android Kotlin code is in `android/app/src/main/kotlin/maynar/bajatelo/bajatelo_app/MainActivity.kt`.
+  - Android Kotlin code is in `android/app/src/main/kotlin/maynar/bajatelo/bajatelo/MainActivity.kt`.
   - Desktop Dart subprocess code is in `lib/services/desktop/`.

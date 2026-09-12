@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bajatelo_app/core/providers/download_notifier.dart';
-import 'package:bajatelo_app/core/providers/download_state.dart';
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
-import 'package:bajatelo_app/core/services/mock_downloader_service.dart';
+import 'package:bajatelo/core/providers/download_notifier.dart';
+import 'package:bajatelo/core/providers/download_state.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/services/mock_downloader_service.dart';
 
 void main() {
   group('DownloadNotifier', () {

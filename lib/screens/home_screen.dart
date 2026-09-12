@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
 
-import 'package:bajatelo_app/core/providers/download_state.dart';
-import 'package:bajatelo_app/core/providers/downloader_provider.dart';
-import 'package:bajatelo_app/core/theme/app_theme.dart';
-import 'package:bajatelo_app/widgets/glassmorphic_card.dart';
-import 'package:bajatelo_app/widgets/gradient_button.dart';
-import 'package:bajatelo_app/widgets/language_toggle.dart';
-import 'package:bajatelo_app/widgets/platform_chip.dart';
-import 'package:bajatelo_app/widgets/progress_indicator.dart';
+import 'package:bajatelo/core/providers/download_state.dart';
+import 'package:bajatelo/core/providers/downloader_provider.dart';
+import 'package:bajatelo/core/theme/app_theme.dart';
+import 'package:bajatelo/widgets/glassmorphic_card.dart';
+import 'package:bajatelo/widgets/gradient_button.dart';
+import 'package:bajatelo/widgets/language_toggle.dart';
+import 'package:bajatelo/widgets/platform_chip.dart';
+import 'package:bajatelo/widgets/progress_indicator.dart';
 
 // ─── Supported platform data ──────────────────────────────────────────────────
 

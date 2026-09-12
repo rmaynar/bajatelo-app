@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bajatelo_app/core/providers/downloader_provider.dart';
-import 'package:bajatelo_app/core/theme/app_theme.dart';
+import 'package:bajatelo/core/providers/downloader_provider.dart';
+import 'package:bajatelo/core/theme/app_theme.dart';
 
 /// EN / ES language toggle replicating the `.lang-selector` / `.lang-btn` CSS.
 ///

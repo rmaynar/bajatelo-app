@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:bajatelo_app/core/interfaces/i_downloader_service.dart';
-import 'package:bajatelo_app/core/providers/download_state.dart';
-import 'package:bajatelo_app/core/utils/ytdlp_error_parser.dart';
+import 'package:bajatelo/core/interfaces/i_downloader_service.dart';
+import 'package:bajatelo/core/providers/download_state.dart';
+import 'package:bajatelo/core/utils/ytdlp_error_parser.dart';
 
 /// Orchestrates the entire download lifecycle.
 ///
