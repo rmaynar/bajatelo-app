@@ -5,7 +5,7 @@ import 'package:bajatelo/core/models/download_result.dart';
 import 'package:bajatelo/services/desktop/binary_manager.dart';
 import 'package:bajatelo/services/desktop/ytdlp_process_runner.dart';
 import 'package:bajatelo/services/desktop/file_naming.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:path/path.dart' as p;
 
 class DesktopDownloaderService implements IDownloaderService {
@@ -52,14 +52,20 @@ class DesktopDownloaderService implements IDownloaderService {
         onProgress: onProgress,
       );
       
-      final downloadsDir = await getDownloadsDirectory() ?? await getApplicationDocumentsDirectory();
       final downloadedFile = File(downloadedPath);
       final extension = p.extension(downloadedPath).replaceFirst('.', '');
       final originalBaseName = p.basenameWithoutExtension(downloadedPath);
       final sanitizedBase = sanitizeFilename(originalBaseName);
       
-      final finalPath = resolveUniqueFilePath(downloadsDir.path, sanitizedBase, extension);
-      final finalFile = await downloadedFile.copy(finalPath);
+      final saveLocation = await getSaveLocation(
+        suggestedName: '$sanitizedBase.$extension',
+      );
+      
+      if (saveLocation == null) {
+        throw Exception('Download cancelled by user.');
+      }
+      
+      final finalFile = await downloadedFile.copy(saveLocation.path);
       
       return DownloadResult(
         filePath: finalFile.path,
