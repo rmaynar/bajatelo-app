@@ -63,3 +63,5 @@ dependencies {
     implementation("io.github.junkfood02.youtubedl-android:aria2c:0.18.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
+
+base.archivesName.set("bajatelo-${flutter.versionName}")
