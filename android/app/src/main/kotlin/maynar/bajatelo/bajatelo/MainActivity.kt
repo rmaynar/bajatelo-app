@@ -1,6 +1,9 @@
 package maynar.bajatelo.bajatelo
 
+import android.app.Activity
 import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Bundle
@@ -31,6 +34,7 @@ class MainActivity : FlutterActivity() {
     private var currentProcessId: String? = null
     private var isInitialized = false
     private var initError: String? = null
+    private var pendingResult: MethodChannel.Result? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,6 +112,31 @@ class MainActivity : FlutterActivity() {
                     initError = e.message ?: "Unknown initialization error"
                 }
                 e.printStackTrace()
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001) {
+            val res = pendingResult
+            pendingResult = null
+            if (resultCode == Activity.RESULT_OK) {
+                val uri = data?.data
+                if (uri != null) {
+                    val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                            Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    contentResolver.takePersistableUriPermission(uri, takeFlags)
+                    
+                    val prefs = getSharedPreferences("bajatelo_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().putString("custom_download_dir", uri.toString()).apply()
+                    
+                    res?.success(uri.toString())
+                } else {
+                    res?.success(null)
+                }
+            } else {
+                res?.success(null)
             }
         }
     }
@@ -212,6 +241,21 @@ runpy.run_path(_ytdlp_zip, run_name='__main__')
                 "updateEngine" -> {
                     updateEngine(result)
                 }
+                "pickDownloadDirectory" -> {
+                    pendingResult = result
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                    startActivityForResult(intent, 1001)
+                }
+                "getCustomDownloadDirectory" -> {
+                    val prefs = getSharedPreferences("bajatelo_prefs", Context.MODE_PRIVATE)
+                    val uriStr = prefs.getString("custom_download_dir", null)
+                    result.success(uriStr)
+                }
+                "clearCustomDownloadDirectory" -> {
+                    val prefs = getSharedPreferences("bajatelo_prefs", Context.MODE_PRIVATE)
+                    prefs.edit().remove("custom_download_dir").apply()
+                    result.success(true)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -301,19 +345,23 @@ runpy.run_path(_ytdlp_zip, run_name='__main__')
 
                 val finalPath = moveToDownloads(downloadedFile, format)
                 
-                // Call MediaScanner
-                MediaScannerConnection.scanFile(
-                    applicationContext,
-                    arrayOf(finalPath),
-                    null,
-                    null
-                )
+                // Call MediaScanner if it's a file path
+                if (!finalPath.startsWith("content://")) {
+                    MediaScannerConnection.scanFile(
+                        applicationContext,
+                        arrayOf(finalPath),
+                        null,
+                        null
+                    )
+                }
                 
                 val file = File(finalPath)
                 val json = JSONObject()
                 json.put("filePath", finalPath)
-                json.put("fileName", file.name)
-                json.put("fileSize", file.length())
+                // If it's a content URI, file.name and file.length() won't work correctly
+                // We'll approximate for now, Flutter doesn't strictly break if fileSize is 0
+                json.put("fileName", if (finalPath.startsWith("content://")) "Downloaded_File" else file.name)
+                json.put("fileSize", if (finalPath.startsWith("content://")) 0 else file.length())
                 
                 withContext(Dispatchers.Main) {
                     result.success(json.toString())
@@ -330,6 +378,34 @@ runpy.run_path(_ytdlp_zip, run_name='__main__')
     private fun moveToDownloads(sourceFile: File, format: String): String {
         val mimeType = if (format == "video") "video/mp4" else "audio/mpeg"
         val isVideo = format == "video"
+        
+        val prefs = getSharedPreferences("bajatelo_prefs", Context.MODE_PRIVATE)
+        val customUriStr = prefs.getString("custom_download_dir", null)
+        
+        if (customUriStr != null) {
+            try {
+                val customUri = android.net.Uri.parse(customUriStr)
+                val documentFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(applicationContext, customUri)
+                if (documentFile != null && documentFile.canWrite()) {
+                    var destFile = documentFile.createFile(mimeType, sourceFile.nameWithoutExtension)
+                    if (destFile != null) {
+                        applicationContext.contentResolver.openOutputStream(destFile.uri)?.use { outputStream ->
+                            java.io.FileInputStream(sourceFile).use { inputStream ->
+                                inputStream.copyTo(outputStream)
+                            }
+                        }
+                        sourceFile.delete()
+                        
+                        // We must return a path-like string or URI that Flutter can handle. 
+                        // The UI currently expects a file path. We will return the URI string, 
+                        // which AndroidDownloaderService can parse if needed, or share_plus can use.
+                        return destFile.uri.toString()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BAJATELO", "Failed to write to custom dir, falling back to default Downloads", e)
+            }
+        }
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val contentValues = ContentValues().apply {

@@ -65,3 +65,6 @@ dependencies {
 }
 
 base.archivesName.set("bajatelo-${flutter.versionName}")
+dependencies {
+    implementation("androidx.documentfile:documentfile:1.0.1")
+}

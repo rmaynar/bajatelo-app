@@ -14,6 +14,7 @@ import 'package:bajatelo/widgets/gradient_button.dart';
 import 'package:bajatelo/widgets/language_toggle.dart';
 import 'package:bajatelo/widgets/platform_chip.dart';
 import 'package:bajatelo/widgets/progress_indicator.dart';
+import 'package:bajatelo/screens/settings_screen.dart';
 
 // ─── Supported platform data ──────────────────────────────────────────────────
 
@@ -226,6 +227,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const Spacer(),
         // Language toggle
         const LanguageToggle(),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.settings_rounded, color: Colors.white),
+          tooltip: 'Settings',
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            );
+          },
+        ),
       ],
     );
   }
