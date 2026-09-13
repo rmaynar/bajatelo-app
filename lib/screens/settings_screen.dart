@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -55,6 +55,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  String _formatDirectory(String uriString) {
+    try {
+      final decoded = Uri.decodeComponent(uriString);
+      if (decoded.contains('tree/')) {
+        final pathPart = decoded.split('tree/').last;
+        if (pathPart.startsWith('primary:')) {
+          final cleanPath = pathPart.replaceFirst('primary:', '').replaceAll(':', '/');
+          return cleanPath.isEmpty ? 'Internal Storage' : 'Internal Storage / $cleanPath';
+        } else {
+          final split = pathPart.split(':');
+          if (split.length > 1) {
+            final cleanPath = split.sublist(1).join('/');
+            return cleanPath.isEmpty ? 'SD Card' : 'SD Card / $cleanPath';
+          }
+          return pathPart;
+        }
+      }
+      return uriString;
+    } catch (e) {
+      return uriString;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,9 +118,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 12),
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                   ),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -108,9 +131,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     subtitle: Text(
                       _customDir != null
-                          ? 'Saved to custom folder\n$_customDir'
+                          ? 'Saved to:\n${_formatDirectory(_customDir!)}'
                           : 'Default Downloads Folder',
-                      style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                     ),
                     trailing: _customDir != null
                         ? IconButton(
