@@ -1,4 +1,4 @@
-package maynar.bajatelo.bajatelo
+package maynar.bajatelo
 
 import android.app.Activity
 import android.content.ContentValues
